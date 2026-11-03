@@ -1,0 +1,47 @@
+name: Auto-approve Jerdon07 PRs
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  auto-approve:
+    if: github.event.pull_request.user.login == 'Jerdon07' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = context.payload.pull_request.number;
+
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner,
+              repo,
+              pull_number,
+            });
+
+            const alreadyApproved = reviews.some(
+              (review) =>
+                review.user?.login === 'github-actions[bot]' &&
+                review.state === 'APPROVED',
+            );
+
+            if (alreadyApproved) {
+              core.info('Pull request is already approved by github-actions[bot].');
+              return;
+            }
+
+            await github.rest.pulls.createReview({
+              owner,
+              repo,
+              pull_number,
+              event: 'APPROVE',
+              body: 'Automatically approved for repository owner PRs.',
+            });
